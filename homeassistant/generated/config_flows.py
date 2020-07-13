@@ -132,6 +132,7 @@ FLOWS = [
     "nzbget",
     "omnilogic",
     "onvif",
+    "openrgb",
     "opentherm_gw",
     "openuv",
     "openweathermap",

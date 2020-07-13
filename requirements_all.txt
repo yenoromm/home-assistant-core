@@ -1048,6 +1048,9 @@ openevsewifi==1.1.0
 # homeassistant.components.openhome
 openhomedevice==0.7.2
 
+# homeassistant.components.openrgb
+openrgb-python==0.2.2
+
 # homeassistant.components.opensensemap
 opensensemap-api==0.1.5
 
