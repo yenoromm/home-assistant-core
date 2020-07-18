@@ -79,6 +79,7 @@ async def async_setup_entry(hass, entry):
     # Initial device load
     async def async_load_devices(device_list):
         device_type_list = {}
+
         for device in device_list:
             ha_type = "light"
             if ha_type not in device_type_list:
@@ -88,6 +89,7 @@ async def async_setup_entry(hass, entry):
 
         for ha_type, dev_ids in device_type_list.items():
             config_entries_key = f"{ha_type}.tuya"
+
             if config_entries_key not in hass.data[DOMAIN][ENTRY_IS_SETUP]:
                 hass.data[DOMAIN]["pending"][ha_type] = dev_ids
                 hass.async_create_task(
@@ -113,9 +115,12 @@ async def async_setup_entry(hass, entry):
         for device in device_list:
             newlist_ids.append(device.id)
         for dev_id in list(hass.data[DOMAIN]["entities"]):
-            if dev_id in newlist_ids:
+            # Clean up stale devices, or alert them that new info is available.
+            if dev_id not in newlist_ids:
                 async_dispatcher_send(hass, SIGNAL_DELETE_ENTITY, dev_id)
                 hass.data[DOMAIN]["entities"].pop(dev_id)
+            else:
+                async_dispatcher_send(hass, SIGNAL_UPDATE_ENTITY, dev_id)
 
     hass.data[DOMAIN][ORGB_TRACKER] = async_track_time_interval(
         hass, async_poll_devices_update, timedelta(minutes=5)
@@ -146,11 +151,12 @@ async def async_unload_entry(hass, entry):
             ]
         )
     )
+
     if unload_ok:
         hass.data[DOMAIN][ENTRY_IS_SETUP] = set()
         hass.data[DOMAIN][ORGB_TRACKER]()
         hass.data[DOMAIN][ORGB_TRACKER] = None
-        del hass.data[DOMAIN][ORGB_DATA]
+        hass.data[DOMAIN][ORGB_DATA] = None
         hass.services.async_remove(DOMAIN, SERVICE_FORCE_UPDATE)
         hass.services.async_remove(DOMAIN, SERVICE_PULL_DEVICES)
         hass.data.pop(DOMAIN)

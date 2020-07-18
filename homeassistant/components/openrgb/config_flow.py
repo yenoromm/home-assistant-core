@@ -60,8 +60,8 @@ class OpenRGBFlowHandler(config_entries.ConfigFlow):
 
         data_schema = {
             vol.Required(CONF_HOST): str,
-            vol.Optional(CONF_PORT, default=self._port): int,
-            vol.Optional(CONF_CLIENT_ID, default=self._client_id): str,
+            vol.Optional(CONF_PORT): int,
+            vol.Optional(CONF_CLIENT_ID): str,
         }
 
         if user_input is not None:
@@ -83,6 +83,15 @@ class OpenRGBFlowHandler(config_entries.ConfigFlow):
 
             self._errors["base"] = result
 
+        config = {
+            CONF_HOST: self._host,
+            CONF_PORT: self._port,
+            CONF_CLIENT_ID: self._client_id,
+        }
+
         return self.async_show_form(
-            step_id="user", data_schema=vol.Schema(data_schema), errors=self._errors,
+            step_id="user",
+            data_schema=vol.Schema(data_schema),
+            description_placeholders=config,
+            errors=self._errors,
         )
