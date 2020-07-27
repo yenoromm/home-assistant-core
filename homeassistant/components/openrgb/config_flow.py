@@ -7,7 +7,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_CLIENT_ID, CONF_HOST, CONF_PORT
 
-from .const import DOMAIN
+from .const import DEFAULT_CLIENT_ID, DEFAULT_PORT, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,8 +28,9 @@ class OpenRGBFlowHandler(config_entries.ConfigFlow):
         """Init OpenRGBFlowHandler."""
         self._errors = {}
         self._host = None
-        self._port = 6742
-        self._client_id = "Home Assistant"
+        self._port = DEFAULT_PORT
+        self._client_id = DEFAULT_CLIENT_ID
+        self._is_import = False
 
     def _try_connect(self):
         """Check if we can connect."""

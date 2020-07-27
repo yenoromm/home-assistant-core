@@ -28,3 +28,8 @@ ICONS = {
     DeviceType.DEVICE_TYPE_HEADSET_STAND: "headset-dock",
     DeviceType.DEVICE_TYPE_UNKNOWN: "crosshairs-question",
 }
+
+TRACK_INTERVAL = 1
+
+DEFAULT_PORT = 6742
+DEFAULT_CLIENT_ID = "Home Assistant"

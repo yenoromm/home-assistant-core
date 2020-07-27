@@ -13,6 +13,8 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import async_track_time_interval
 
 from .const import (
+    DEFAULT_CLIENT_ID,
+    DEFAULT_PORT,
     DOMAIN,
     ENTRY_IS_SETUP,
     ORGB_DATA,
@@ -22,6 +24,7 @@ from .const import (
     SERVICE_PULL_DEVICES,
     SIGNAL_DELETE_ENTITY,
     SIGNAL_UPDATE_ENTITY,
+    TRACK_INTERVAL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,8 +36,8 @@ CONFIG_SCHEMA = vol.Schema(
             DOMAIN: vol.Schema(
                 {
                     vol.Required(CONF_HOST): cv.string,
-                    vol.Optional(CONF_PORT, default="6742"): cv.port,
-                    vol.Optional(CONF_CLIENT_ID, default="Home Assistant"): cv.string,
+                    vol.Optional(CONF_PORT, default=DEFAULT_PORT): cv.port,
+                    vol.Optional(CONF_CLIENT_ID, default=DEFAULT_CLIENT_ID): cv.string,
                 }
             )
         },
@@ -69,6 +72,7 @@ async def async_setup_entry(hass, entry):
         return False
 
     hass.data[DOMAIN] = {
+        "online": False,
         ORGB_DATA: orgb,
         ORGB_TRACKER: None,
         ENTRY_IS_SETUP: set(),
@@ -88,7 +92,7 @@ async def async_setup_entry(hass, entry):
             hass.data[DOMAIN]["entities"][f"{device.name}-{device.id}"] = None
 
         for ha_type, dev_ids in device_type_list.items():
-            config_entries_key = f"{ha_type}.tuya"
+            config_entries_key = f"{ha_type}.openrgb"
 
             if config_entries_key not in hass.data[DOMAIN][ENTRY_IS_SETUP]:
                 hass.data[DOMAIN]["pending"][ha_type] = dev_ids
@@ -102,15 +106,30 @@ async def async_setup_entry(hass, entry):
                 )
 
     def _get_updated_devices():
-        orgb.get_device_info()
+        try:
+            orgb.get_device_info()
+            hass.data[DOMAIN]["online"] = True
+        except ConnectionError:
+            hass.data[DOMAIN]["online"] = False
+            return None
         return orgb.devices
 
     await async_load_devices(_get_updated_devices())
 
     async def async_poll_devices_update(event_time):
-        device_list = await hass.async_add_executor_job(_get_updated_devices)
+        if not hass.data[DOMAIN]["online"]:
+            # try to reconnect
+            try:
+                hass.data[DOMAIN][ORGB_DATA].comms.stop_connection()
+                hass.data[DOMAIN][ORGB_DATA].comms.start_connection()
+            except ConnectionError:
+                return
 
+        device_list = await hass.async_add_executor_job(_get_updated_devices)
+        if device_list is None:
+            return
         await async_load_devices(device_list)
+
         newlist_ids = []
         for device in device_list:
             newlist_ids.append(device.id)
@@ -120,10 +139,11 @@ async def async_setup_entry(hass, entry):
                 async_dispatcher_send(hass, SIGNAL_DELETE_ENTITY, dev_id)
                 hass.data[DOMAIN]["entities"].pop(dev_id)
             else:
+                hass.data[DOMAIN]["entities"][dev_id].set_availablity(True)
                 async_dispatcher_send(hass, SIGNAL_UPDATE_ENTITY, dev_id)
 
     hass.data[DOMAIN][ORGB_TRACKER] = async_track_time_interval(
-        hass, async_poll_devices_update, timedelta(minutes=5)
+        hass, async_poll_devices_update, timedelta(minutes=TRACK_INTERVAL)
     )
 
     hass.services.async_register(

@@ -107,6 +107,11 @@ class OpenRGBLight(LightEntity):
         return self._name
 
     @property
+    def available(self):
+        """Return if the device is online."""
+        return self.hass.data[DOMAIN]["online"]
+
+    @property
     def is_on(self):
         """Return true if light is on."""
         return self._state
