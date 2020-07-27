@@ -34,7 +34,8 @@ class OpenRGBFlowHandler(config_entries.ConfigFlow):
     def _try_connect(self):
         """Check if we can connect."""
         try:
-            OpenRGBClient(self._host, self._port, name=self._client_id)
+            conn = OpenRGBClient(self._host, self._port, name=self._client_id)
+            conn.comms.stop_connection()
         except ConnectionRefusedError:
             return RESULT_CONN_ERROR
         return RESULT_SUCCESS
@@ -60,8 +61,8 @@ class OpenRGBFlowHandler(config_entries.ConfigFlow):
 
         data_schema = {
             vol.Required(CONF_HOST): str,
-            vol.Optional(CONF_PORT): int,
-            vol.Optional(CONF_CLIENT_ID): str,
+            vol.Optional(CONF_PORT, default=self._port): int,
+            vol.Optional(CONF_CLIENT_ID, default=self._client_id): str,
         }
 
         if user_input is not None:

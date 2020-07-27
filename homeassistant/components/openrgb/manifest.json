@@ -3,6 +3,6 @@
     "name": "OpenRGB",
     "config_flow": true,
     "documentation": "https://www.home-assistant.io/integrations/openrgb",
-    "requirements": ["openrgb-python==0.1.3"],
+    "requirements": ["openrgb-python==0.1.4"],
     "codeowners": ["@bahorn"]
 }

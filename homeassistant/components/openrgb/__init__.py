@@ -156,6 +156,7 @@ async def async_unload_entry(hass, entry):
         hass.data[DOMAIN][ENTRY_IS_SETUP] = set()
         hass.data[DOMAIN][ORGB_TRACKER]()
         hass.data[DOMAIN][ORGB_TRACKER] = None
+        hass.data[DOMAIN][ORGB_DATA].comms.stop_connection()
         hass.data[DOMAIN][ORGB_DATA] = None
         hass.services.async_remove(DOMAIN, SERVICE_FORCE_UPDATE)
         hass.services.async_remove(DOMAIN, SERVICE_PULL_DEVICES)
