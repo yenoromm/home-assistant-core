@@ -18,7 +18,13 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 import homeassistant.util.color as color_util
 
-from .const import DOMAIN, ICONS, ORGB_DISCOVERY_NEW, SIGNAL_DELETE_ENTITY
+from .const import (
+    DOMAIN,
+    ICONS,
+    ORGB_DISCOVERY_NEW,
+    SIGNAL_DELETE_ENTITY,
+    SIGNAL_UPDATE_ENTITY,
+)
 from .helpers import orgb_entity_id, orgb_object_id, orgb_tuple
 
 _LOGGER = logging.getLogger(__name__)
@@ -80,6 +86,7 @@ class OpenRGBLight(LightEntity):
         dev_id = self.entity_id
         self.hass.data[DOMAIN]["entities"][dev_id] = dev_id
         async_dispatcher_connect(self.hass, SIGNAL_DELETE_ENTITY, self._delete_callback)
+        async_dispatcher_connect(self.hass, SIGNAL_UPDATE_ENTITY, self._update_callback)
 
     # Device Properties
 
@@ -227,3 +234,7 @@ class OpenRGBLight(LightEntity):
                 entity_registry.async_remove(self.entity_id)
             else:
                 await self.async_remove()
+
+    @callback
+    async def _update_callback(self, dev_id=None):
+        self.async_schedule_update_ha_state(True)

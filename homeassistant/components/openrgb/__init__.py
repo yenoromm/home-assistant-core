@@ -84,6 +84,7 @@ async def async_setup_entry(hass, entry):
 
     def connection_failed():
         if hass.data[DOMAIN]["online"]:
+            hass.data[DOMAIN][ORGB_DATA].comms.stop_connection()
             _LOGGER.info(
                 "Connection lost to OpenRGB SDK Server at %s:%i",
                 entry.data[CONF_HOST],
@@ -136,7 +137,7 @@ async def async_setup_entry(hass, entry):
         try:
             orgb.get_device_info()
         except ConnectionError:
-            hass.data[DOMAIN][ORGB_DATA]["connection_failed"]()
+            hass.data[DOMAIN]["connection_failed"]()
             return None
         return orgb.devices
 
@@ -146,7 +147,6 @@ async def async_setup_entry(hass, entry):
         if not hass.data[DOMAIN]["online"]:
             # try to reconnect
             try:
-                hass.data[DOMAIN][ORGB_DATA].comms.stop_connection()
                 hass.data[DOMAIN][ORGB_DATA].comms.start_connection()
                 hass.data[DOMAIN]["connection_recovered"]()
             except ConnectionError:
