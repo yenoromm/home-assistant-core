@@ -19,3 +19,5 @@ TRACK_INTERVAL = timedelta(seconds=30)
 
 DEFAULT_PORT = 6742
 DEFAULT_CLIENT_ID = "Home Assistant"
+
+CONN_TIMEOUT = 5.0

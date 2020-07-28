@@ -1,4 +1,5 @@
 """Config flow for OpenRGB."""
+import asyncio
 import logging
 
 from openrgb import OpenRGBClient
@@ -7,7 +8,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_CLIENT_ID, CONF_HOST, CONF_PORT
 
-from .const import DEFAULT_CLIENT_ID, DEFAULT_PORT, DOMAIN
+from .const import CONN_TIMEOUT, DEFAULT_CLIENT_ID, DEFAULT_PORT, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ class OpenRGBFlowHandler(config_entries.ConfigFlow):
         try:
             conn = OpenRGBClient(self._host, self._port, name=self._client_id)
             conn.comms.stop_connection()
-        except ConnectionRefusedError:
+        except Exception:
             return RESULT_CONN_ERROR
         return RESULT_SUCCESS
 
@@ -71,7 +72,13 @@ class OpenRGBFlowHandler(config_entries.ConfigFlow):
             self._port = user_input[CONF_PORT]
             self._client_id = user_input[CONF_CLIENT_ID]
 
-            result = await self.hass.async_add_executor_job(self._try_connect)
+            try:
+                result = await asyncio.wait_for(
+                    self.hass.async_add_executor_job(self._try_connect),
+                    timeout=CONN_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                result = RESULT_CONN_ERROR
 
             if result == RESULT_SUCCESS:
                 return self._get_entry()
