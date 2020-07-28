@@ -20,12 +20,11 @@ import homeassistant.util.color as color_util
 
 from .const import (
     DOMAIN,
-    ICONS,
     ORGB_DISCOVERY_NEW,
     SIGNAL_DELETE_ENTITY,
     SIGNAL_UPDATE_ENTITY,
 )
-from .helpers import orgb_entity_id, orgb_object_id, orgb_tuple
+from .helpers import orgb_entity_id, orgb_icon, orgb_object_id, orgb_tuple
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -103,7 +102,7 @@ class OpenRGBLight(LightEntity):
     @property
     def icon(self):
         """Give this device an icon representing what it is."""
-        return "mdi:{}".format(ICONS.get(self._light.type, "lightbulb"))
+        return "mdi:{}".format(orgb_icon(self._light.type))
 
     @property
     def name(self):
