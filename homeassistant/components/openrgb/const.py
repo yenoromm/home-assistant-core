@@ -1,5 +1,7 @@
 """Constants for the OpenRGB integration."""
 
+from datetime import timedelta
+
 from openrgb.utils import DeviceType
 
 DOMAIN = "openrgb"
@@ -15,6 +17,7 @@ ENTRY_IS_SETUP = "openrgb_entry_is_setup"
 SIGNAL_DELETE_ENTITY = "openrgb_delete"
 SIGNAL_UPDATE_ENTITY = "openrgb_update"
 
+
 ICONS = {
     DeviceType.DEVICE_TYPE_MOTHERBOARD: "view-dashboard-outline",
     DeviceType.DEVICE_TYPE_DRAM: "memory",
@@ -29,7 +32,8 @@ ICONS = {
     DeviceType.DEVICE_TYPE_UNKNOWN: "crosshairs-question",
 }
 
-TRACK_INTERVAL = 1
+
+TRACK_INTERVAL = timedelta(seconds=30)
 
 DEFAULT_PORT = 6742
 DEFAULT_CLIENT_ID = "Home Assistant"

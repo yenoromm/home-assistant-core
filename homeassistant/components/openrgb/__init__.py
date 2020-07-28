@@ -1,6 +1,5 @@
 """The OpenRGB integration."""
 import asyncio
-from datetime import timedelta
 import logging
 
 from openrgb import OpenRGBClient
@@ -26,6 +25,7 @@ from .const import (
     SIGNAL_UPDATE_ENTITY,
     TRACK_INTERVAL,
 )
+from .helpers import orgb_entity_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,7 +71,25 @@ async def async_setup_entry(hass, entry):
         _LOGGER.error(f"Connection error during integration setup. Error: {err}")
         return False
 
+    def connection_recovered():
+        if not hass.data[DOMAIN]["online"]:
+            _LOGGER.info(
+                "Connection reestablished to OpenRGB SDK Server at %s:%i",
+                entry.data[CONF_HOST],
+                entry.data[CONF_PORT],
+            )
+
+        hass.data[DOMAIN]["online"] = True
+        async_dispatcher_send(hass, SIGNAL_UPDATE_ENTITY)
+
     def connection_failed():
+        if hass.data[DOMAIN]["online"]:
+            _LOGGER.info(
+                "Connection lost to OpenRGB SDK Server at %s:%i",
+                entry.data[CONF_HOST],
+                entry.data[CONF_PORT],
+            )
+
         hass.data[DOMAIN]["online"] = False
         async_dispatcher_send(hass, SIGNAL_UPDATE_ENTITY)
 
@@ -83,6 +101,7 @@ async def async_setup_entry(hass, entry):
         "entities": {},
         "pending": {},
         "connection_failed": connection_failed,
+        "connection_recovered": connection_recovered,
     }
 
     # Initial device load
@@ -94,7 +113,10 @@ async def async_setup_entry(hass, entry):
             if ha_type not in device_type_list:
                 device_type_list[ha_type] = []
             device_type_list[ha_type].append(device)
-            hass.data[DOMAIN]["entities"][f"{device.name}-{device.id}"] = None
+
+            entity_id = orgb_entity_id(device)
+            if entity_id not in hass.data[DOMAIN]["entities"]:
+                hass.data[DOMAIN]["entities"][entity_id] = None
 
         for ha_type, dev_ids in device_type_list.items():
             config_entries_key = f"{ha_type}.openrgb"
@@ -126,9 +148,9 @@ async def async_setup_entry(hass, entry):
             try:
                 hass.data[DOMAIN][ORGB_DATA].comms.stop_connection()
                 hass.data[DOMAIN][ORGB_DATA].comms.start_connection()
-                hass.data[DOMAIN]["online"] = True
+                hass.data[DOMAIN]["connection_recovered"]()
             except ConnectionError:
-                hass.data[DOMAIN][ORGB_DATA]["connection_failed"]()
+                hass.data[DOMAIN]["connection_failed"]()
 
         device_list = await hass.async_add_executor_job(_get_updated_devices)
 
@@ -139,7 +161,7 @@ async def async_setup_entry(hass, entry):
 
         newlist_ids = []
         for device in device_list:
-            newlist_ids.append(device.id)
+            newlist_ids.append(orgb_entity_id(device))
         for dev_id in list(hass.data[DOMAIN]["entities"]):
             # Clean up stale devices, or alert them that new info is available.
             if dev_id not in newlist_ids:
@@ -149,7 +171,7 @@ async def async_setup_entry(hass, entry):
                 async_dispatcher_send(hass, SIGNAL_UPDATE_ENTITY, dev_id)
 
     hass.data[DOMAIN][ORGB_TRACKER] = async_track_time_interval(
-        hass, async_poll_devices_update, timedelta(minutes=TRACK_INTERVAL)
+        hass, async_poll_devices_update, TRACK_INTERVAL
     )
 
     hass.services.async_register(

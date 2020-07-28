@@ -9,7 +9,6 @@ from homeassistant.components.light import (
     ATTR_EFFECT,
     ATTR_HS_COLOR,
     DOMAIN as SENSOR_DOMAIN,
-    ENTITY_ID_FORMAT,
     SUPPORT_BRIGHTNESS,
     SUPPORT_COLOR,
     SUPPORT_EFFECT,
@@ -19,14 +18,8 @@ from homeassistant.core import callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 import homeassistant.util.color as color_util
 
-from .const import (
-    DOMAIN,
-    ICONS,
-    ORGB_DISCOVERY_NEW,
-    SIGNAL_DELETE_ENTITY,
-    SIGNAL_UPDATE_ENTITY,
-)
-from .helpers import orgb_tuple
+from .const import DOMAIN, ICONS, ORGB_DISCOVERY_NEW, SIGNAL_DELETE_ENTITY
+from .helpers import orgb_entity_id, orgb_object_id, orgb_tuple
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -40,7 +33,7 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
             return
 
         entities = await hass.async_add_executor_job(_setup_entities, hass, dev_ids,)
-        async_add_entities(entities)
+        async_add_entities(entities, True)
 
     async_dispatcher_connect(
         hass, ORGB_DISCOVERY_NEW.format(SENSOR_DOMAIN), async_discover_sensor
@@ -56,8 +49,10 @@ def _setup_entities(hass, dev_ids):
     for dev_id in dev_ids:
         if dev_id is None:
             continue
-        # check if this entity already exists
-
+        # check if this already exists
+        entity_id = orgb_entity_id(dev_id)
+        if hass.data[DOMAIN]["entities"].get(entity_id, None):
+            continue
         entities.append(OpenRGBLight(dev_id))
     return entities
 
@@ -72,26 +67,26 @@ class OpenRGBLight(LightEntity):
         # For restoring the previous state when the light is power cycled.
         self._prev_brightness = 100.0
         self._prev_hs_value = (0.0, 0.0)
+        self._brightness = 100.0
+        self._hs_value = (0.0, 0.0)
         self._prev_effect = self._light.modes[self._light.active_mode].name
         self._state = True
         self._assumed_state = True
-        self.update()
 
-        self.entity_id = ENTITY_ID_FORMAT.format(self.object_id)
+        self.entity_id = orgb_entity_id(self._light)
 
     async def async_added_to_hass(self):
         """Call when entity is added to hass."""
         dev_id = self.entity_id
         self.hass.data[DOMAIN]["entities"][dev_id] = dev_id
         async_dispatcher_connect(self.hass, SIGNAL_DELETE_ENTITY, self._delete_callback)
-        async_dispatcher_connect(self.hass, SIGNAL_UPDATE_ENTITY, self._update_callback)
 
     # Device Properties
 
     @property
     def object_id(self):
         """Return the OpenRGB id."""
-        return f"{self._light.name}-{self._light.device_id}"
+        return orgb_object_id(self._light)
 
     @property
     def unique_id(self):
@@ -147,26 +142,6 @@ class OpenRGBLight(LightEntity):
     def supported_features(self):
         """Return the supported features for this device."""
         return SUPPORT_EFFECT | SUPPORT_COLOR | SUPPORT_BRIGHTNESS
-
-    @property
-    def state_attributes(self):
-        """Return state attributes."""
-        if not self.is_on:
-            return None
-
-        data = {}
-        supported_features = self.supported_features
-
-        if supported_features & SUPPORT_BRIGHTNESS:
-            data[ATTR_BRIGHTNESS] = self.brightness
-
-        if supported_features & SUPPORT_COLOR and self.hs_color:
-            # pylint: disable=unsubscriptable-object,not-an-iterable
-            hs_color = self.hs_color
-            data[ATTR_HS_COLOR] = (round(hs_color[0], 3), round(hs_color[1], 3))
-
-        if supported_features & SUPPORT_EFFECT:
-            data[ATTR_EFFECT] = self._effect
 
     # Public interfaces to control the device
 
@@ -252,9 +227,3 @@ class OpenRGBLight(LightEntity):
                 entity_registry.async_remove(self.entity_id)
             else:
                 await self.async_remove()
-
-    @callback
-    async def _update_callback(self):
-        """Call update method."""
-        self.update()
-        self.async_schedule_update_ha_state(True)
