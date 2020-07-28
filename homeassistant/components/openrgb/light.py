@@ -56,6 +56,8 @@ def _setup_entities(hass, dev_ids):
     for dev_id in dev_ids:
         if dev_id is None:
             continue
+        # check if this entity already exists
+
         entities.append(OpenRGBLight(dev_id))
     return entities
 
@@ -222,16 +224,21 @@ class OpenRGBLight(LightEntity):
     # Functions to modify the devices state
     def _set_effect(self):
         """Set the devices effect."""
-        self._light.set_mode(self._effect)
+        try:
+            self._light.set_mode(self._effect)
+        except ConnectionError:
+            self.hass.data[DOMAIN]["connection_failed"]()
 
     def _set_color(self):
         """Set the devices color using the library."""
         color = color_util.color_hsv_to_RGB(
             *(self._hs_value), 100.0 * (self._brightness / 255.0)
         )
-
-        self._light.set_color(RGBUtils.RGBColor(*color))
-        self._assumed_state = False
+        try:
+            self._light.set_color(RGBUtils.RGBColor(*color))
+            self._assumed_state = False
+        except ConnectionError:
+            self.hass.data[DOMAIN]["connection_failed"]()
 
     # Callbacks
     @callback

@@ -71,13 +71,18 @@ async def async_setup_entry(hass, entry):
         _LOGGER.error(f"Connection error during integration setup. Error: {err}")
         return False
 
+    def connection_failed():
+        hass.data[DOMAIN]["online"] = False
+        async_dispatcher_send(hass, SIGNAL_UPDATE_ENTITY)
+
     hass.data[DOMAIN] = {
-        "online": False,
+        "online": True,
         ORGB_DATA: orgb,
         ORGB_TRACKER: None,
         ENTRY_IS_SETUP: set(),
         "entities": {},
         "pending": {},
+        "connection_failed": connection_failed,
     }
 
     # Initial device load
@@ -108,9 +113,8 @@ async def async_setup_entry(hass, entry):
     def _get_updated_devices():
         try:
             orgb.get_device_info()
-            hass.data[DOMAIN]["online"] = True
         except ConnectionError:
-            hass.data[DOMAIN]["online"] = False
+            hass.data[DOMAIN][ORGB_DATA]["connection_failed"]()
             return None
         return orgb.devices
 
@@ -122,12 +126,15 @@ async def async_setup_entry(hass, entry):
             try:
                 hass.data[DOMAIN][ORGB_DATA].comms.stop_connection()
                 hass.data[DOMAIN][ORGB_DATA].comms.start_connection()
+                hass.data[DOMAIN]["online"] = True
             except ConnectionError:
-                return
+                hass.data[DOMAIN][ORGB_DATA]["connection_failed"]()
 
         device_list = await hass.async_add_executor_job(_get_updated_devices)
+
         if device_list is None:
             return
+
         await async_load_devices(device_list)
 
         newlist_ids = []
@@ -139,7 +146,6 @@ async def async_setup_entry(hass, entry):
                 async_dispatcher_send(hass, SIGNAL_DELETE_ENTITY, dev_id)
                 hass.data[DOMAIN]["entities"].pop(dev_id)
             else:
-                hass.data[DOMAIN]["entities"][dev_id].set_availablity(True)
                 async_dispatcher_send(hass, SIGNAL_UPDATE_ENTITY, dev_id)
 
     hass.data[DOMAIN][ORGB_TRACKER] = async_track_time_interval(
